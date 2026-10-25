@@ -106,7 +106,8 @@ class Alert(Base):
 class AuditLog(Base):
     __tablename__ = "audit_log"
     id: Mapped[int] = mapped_column(primary_key=True)
-    ts: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    # An ISO UTC string preserves the exact bytes included in the hash chain.
+    ts: Mapped[str] = mapped_column(String, nullable=False)
     actor_id: Mapped[int] = mapped_column(Integer, nullable=False)
     actor_email: Mapped[str] = mapped_column(String, nullable=False)
     actor_role: Mapped[str] = mapped_column(String, nullable=False)

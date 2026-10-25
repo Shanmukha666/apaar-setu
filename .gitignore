@@ -4,3 +4,5 @@ __pycache__
 *.db
 .next
 .env*
+.vscode/
+.pytest_cache/

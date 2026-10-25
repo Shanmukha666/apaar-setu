@@ -6,6 +6,7 @@ from app.core.security import create_access_token, get_current_user, verify_pass
 from app.db import get_db
 from app.models import User
 from app.schemas import LoginRequest, LoginResponse, UserOut
+from app.services.audit import log_action
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -15,6 +16,8 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == request.email).first()
     if not user or not verify_password(request.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+    log_action(db, user, "LOGIN", "user", user.id, {"email": user.email})
+    db.commit()
     return LoginResponse(access_token=create_access_token(user), token_type="bearer", user=user)
 
 

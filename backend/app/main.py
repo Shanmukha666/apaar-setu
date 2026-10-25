@@ -1,5 +1,7 @@
 """FastAPI application and deterministic demo-data bootstrap."""
 from contextlib import asynccontextmanager
+import json
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,12 +27,12 @@ def seed_demo_data(db: Session) -> None:
         if not db.get(Institution, ident):
             db.add(Institution(id=ident, code=code, name=name, state=state, type=kind))
     db.flush()
-    programme_specs = [("CSE", "Computer Science", "UG", 4, 60), ("ECE", "Electronics", "UG", 4, 90), ("MBA", "Management", "PG", 2, 120)]
-    for ident, code, *_ in INSTITUTIONS:
-        for suffix, name, level, years, intake in programme_specs:
-            programme_code = f"{code}-{suffix}"
-            if not db.query(Programme).filter_by(code=programme_code).first():
-                db.add(Programme(institution_id=ident, code=programme_code, name=name, level=level, duration_years=years, approved_intake=intake, supernumerary_limit=(intake + 9) // 10))
+    source = Path(__file__).resolve().parents[1] / "seed" / "data" / "programmes.json"
+    for programme in json.loads(source.read_text(encoding="utf-8")):
+        if not db.query(Programme).filter_by(code=programme["code"]).first():
+            suffix = programme["code"].split("-")[-1]
+            name, level, years = {"CSE": ("Computer Science", "UG", 4), "ECE": ("Electronics", "UG", 4), "MBA": ("Management", "PG", 2)}[suffix]
+            db.add(Programme(id=programme["id"], institution_id=programme["institution_id"], code=programme["code"], name=name, level=level, duration_years=years, approved_intake=programme["approved_intake"], supernumerary_limit=programme["supernumerary_limit"]))
     accounts = [
         ("aicte@demo.in", "AICTE Officer", "aicte_officer", None),
         ("sysadmin@demo.in", "System Administrator", "sys_admin", None),
