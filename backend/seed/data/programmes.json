@@ -1,0 +1,107 @@
+[
+  {
+    "id": 1,
+    "institution_id": 1,
+    "code": "DIT001-CSE",
+    "approved_intake": 60,
+    "supernumerary_limit": 6
+  },
+  {
+    "id": 2,
+    "institution_id": 1,
+    "code": "DIT001-ECE",
+    "approved_intake": 90,
+    "supernumerary_limit": 9
+  },
+  {
+    "id": 3,
+    "institution_id": 1,
+    "code": "DIT001-MBA",
+    "approved_intake": 120,
+    "supernumerary_limit": 12
+  },
+  {
+    "id": 4,
+    "institution_id": 2,
+    "code": "CCE002-CSE",
+    "approved_intake": 60,
+    "supernumerary_limit": 6
+  },
+  {
+    "id": 5,
+    "institution_id": 2,
+    "code": "CCE002-ECE",
+    "approved_intake": 90,
+    "supernumerary_limit": 9
+  },
+  {
+    "id": 6,
+    "institution_id": 2,
+    "code": "CCE002-MBA",
+    "approved_intake": 120,
+    "supernumerary_limit": 12
+  },
+  {
+    "id": 7,
+    "institution_id": 3,
+    "code": "HSM003-CSE",
+    "approved_intake": 60,
+    "supernumerary_limit": 6
+  },
+  {
+    "id": 8,
+    "institution_id": 3,
+    "code": "HSM003-ECE",
+    "approved_intake": 90,
+    "supernumerary_limit": 9
+  },
+  {
+    "id": 9,
+    "institution_id": 3,
+    "code": "HSM003-MBA",
+    "approved_intake": 120,
+    "supernumerary_limit": 12
+  },
+  {
+    "id": 10,
+    "institution_id": 4,
+    "code": "MIP004-CSE",
+    "approved_intake": 60,
+    "supernumerary_limit": 6
+  },
+  {
+    "id": 11,
+    "institution_id": 4,
+    "code": "MIP004-ECE",
+    "approved_intake": 90,
+    "supernumerary_limit": 9
+  },
+  {
+    "id": 12,
+    "institution_id": 4,
+    "code": "MIP004-MBA",
+    "approved_intake": 120,
+    "supernumerary_limit": 12
+  },
+  {
+    "id": 13,
+    "institution_id": 5,
+    "code": "KPT005-CSE",
+    "approved_intake": 60,
+    "supernumerary_limit": 6
+  },
+  {
+    "id": 14,
+    "institution_id": 5,
+    "code": "KPT005-ECE",
+    "approved_intake": 90,
+    "supernumerary_limit": 9
+  },
+  {
+    "id": 15,
+    "institution_id": 5,
+    "code": "KPT005-MBA",
+    "approved_intake": 120,
+    "supernumerary_limit": 12
+  }
+]
