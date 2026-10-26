@@ -8,6 +8,7 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 APAAR_MODE = os.getenv("APAAR_MODE", "mock")
 DEMO_TODAY = os.getenv("DEMO_TODAY", "2027-12-31")
 APP_ENV = os.getenv("APP_ENV", "development")
+AUTO_SEED_FULL = os.getenv("AUTO_SEED_FULL", "true").lower() == "true"
 
 
 def validate_deployment_settings() -> None:

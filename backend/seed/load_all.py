@@ -12,8 +12,8 @@ from pathlib import Path
 from app.core.config import DEMO_TODAY
 from app.core.security import hash_password
 from app.db import Base, SessionLocal, engine
-from app.main import seed_demo_data
 from app.models import Consent, Student, User
+from app.services.bootstrap import seed_demo_data
 from app.services.ingest import process_rows
 from seed.load_registry import load_registry
 from seed.refresh_all import refresh_all
@@ -48,32 +48,30 @@ def _read_baseline() -> dict[int, list[dict[str, str]]]:
     return grouped
 
 
+def seed_all(db) -> None:
+    """Populate a supplied session once; safe in Vercel function cold starts."""
+    seed_demo_data(db)
+    actor = _system_actor(db)
+    load_registry(db)
+    if not db.query(Student).count():
+        today = date.fromisoformat(DEMO_TODAY)
+        for institution_id, rows in sorted(_read_baseline().items()):
+            process_rows(db, institution_id, actor, rows, "students_baseline.csv", "csv", False, today)
+
+    # Consent state is deterministic and applies to every seeded student.
+    for apaar_id, in db.query(Student.apaar_id).distinct().order_by(Student.apaar_id):
+        if db.query(Consent).filter_by(apaar_id=apaar_id).first():
+            continue
+        db.add(Consent(apaar_id=apaar_id, granted=int(apaar_id) % 5 != 0, purpose="verification"))
+    db.commit()
+    refresh_all(db)
+
+
 def load_all() -> None:
-    """Seed an empty database. Repeated calls leave stored students unchanged."""
+    """Seed the configured database from the command line."""
     Base.metadata.create_all(bind=engine)
     with SessionLocal() as db:
-        seed_demo_data(db)
-        actor = _system_actor(db)
-        load_registry(db)
-        if not db.query(Student).count():
-            today = date.fromisoformat(DEMO_TODAY)
-            for institution_id, rows in sorted(_read_baseline().items()):
-                process_rows(
-                    db, institution_id, actor, rows, "students_baseline.csv", "csv",
-                    False, today,
-                )
-
-        # Consent state is deterministic and applies to every seeded student.
-        for apaar_id, in db.query(Student.apaar_id).distinct().order_by(Student.apaar_id):
-            if db.query(Consent).filter_by(apaar_id=apaar_id).first():
-                continue
-            db.add(Consent(
-                apaar_id=apaar_id,
-                granted=int(apaar_id) % 5 != 0,
-                purpose="verification",
-            ))
-        db.commit()
-        refresh_all(db)
+        seed_all(db)
         print(f"Loaded {db.query(Student).count()} synthetic students.")
 
 

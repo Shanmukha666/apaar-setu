@@ -25,6 +25,6 @@ npm run dev
 
 The frontend runs on port 3000 and expects the backend at `http://localhost:8000`.
 
-## Staging deployment
+## Vercel staging deployment
 
-Use Vercel for `frontend/` and a persistent FastAPI host for `backend/`. The exact environment variables, secret-generation command, and verification checklist are in [docs/STAGING_DEPLOYMENT.md](docs/STAGING_DEPLOYMENT.md).
+Deploy both the Next.js frontend and FastAPI backend as separate Vercel projects, backed by a Vercel Marketplace PostgreSQL integration. The full sequence, environment variables, and verification checklist are in [docs/VERCEL_DEPLOYMENT.md](docs/VERCEL_DEPLOYMENT.md).

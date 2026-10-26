@@ -2,3 +2,4 @@
 import os
 
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+os.environ["AUTO_SEED_FULL"] = "false"
