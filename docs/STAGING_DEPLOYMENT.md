@@ -6,6 +6,8 @@ This prototype is safe to demonstrate publicly only with its supplied **syntheti
 
 Deploy the Next.js app in `frontend/` to Vercel. Deploy the FastAPI app in `backend/` to a persistent service such as Render or Railway. Do not deploy the current SQLite-backed FastAPI app as a Vercel serverless function: its filesystem is ephemeral and seeded data would not persist.
 
+The repository includes `backend/Dockerfile` and `render.yaml` for a Render Blueprint. Its persistent disk is normally a paid resource; review the plan and cost before creating it. The API starts by running the idempotent seed loader, so a mounted `/var/data` disk retains demo data over restarts.
+
 ## 1. Deploy the backend
 
 Create a service with `backend` as its root directory.

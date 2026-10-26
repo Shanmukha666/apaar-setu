@@ -1,0 +1,30 @@
+# Optional Render Blueprint for the FastAPI half of the staging deployment.
+# A persistent disk requires a paid Render plan; do not create the service until
+# its plan and monthly cost have been reviewed in the Render dashboard.
+services:
+  - type: web
+    name: apaar-setu-api
+    runtime: docker
+    rootDir: backend
+    healthCheckPath: /api/health
+    disk:
+      name: apaar-setu-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: APP_ENV
+        value: staging
+      - key: DATABASE_URL
+        value: sqlite:////var/data/apaar_setu.db
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SIGNING_SEED
+        generateValue: true
+      - key: APAAR_MODE
+        value: mock
+      - key: DEMO_TODAY
+        value: 2027-12-31
+      # Set this after Vercel provides the real URL; the API refuses staging
+      # startup if it is left at its local default.
+      - key: FRONTEND_URL
+        sync: false
