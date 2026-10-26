@@ -1,6 +1,6 @@
 """FastAPI application and deterministic demo-data bootstrap."""
-from contextlib import asynccontextmanager
 import json
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -8,9 +8,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from app.core.security import hash_password
+from app.core.config import FRONTEND_URL, validate_deployment_settings
 from app.db import Base, SessionLocal, engine
 from app.models import Institution, Programme, User
 from app.routers import alerts, audit, auth, consent, dashboard, institutions, mock_apaar, records, reports, students, uploads, verify
+
+PROGRAMMES_FILE = Path(__file__).resolve().parents[1] / "seed" / "data" / "programmes.json"
 
 INSTITUTIONS = [
     (1, "DIT001", "Deccan Institute of Technology", "Telangana", "Engineering"),
@@ -27,12 +30,9 @@ def seed_demo_data(db: Session) -> None:
         if not db.get(Institution, ident):
             db.add(Institution(id=ident, code=code, name=name, state=state, type=kind))
     db.flush()
-    source = Path(__file__).resolve().parents[1] / "seed" / "data" / "programmes.json"
-    for programme in json.loads(source.read_text(encoding="utf-8")):
-        if not db.query(Programme).filter_by(code=programme["code"]).first():
-            suffix = programme["code"].split("-")[-1]
-            name, level, years = {"CSE": ("Computer Science", "UG", 4), "ECE": ("Electronics", "UG", 4), "MBA": ("Management", "PG", 2)}[suffix]
-            db.add(Programme(id=programme["id"], institution_id=programme["institution_id"], code=programme["code"], name=name, level=level, duration_years=years, approved_intake=programme["approved_intake"], supernumerary_limit=programme["supernumerary_limit"]))
+    for spec in json.loads(PROGRAMMES_FILE.read_text(encoding="utf-8")):
+        if not db.query(Programme).filter_by(code=spec["code"]).first():
+            db.add(Programme(**spec))
     accounts = [
         ("aicte@demo.in", "AICTE Officer", "aicte_officer", None),
         ("sysadmin@demo.in", "System Administrator", "sys_admin", None),
@@ -47,6 +47,7 @@ def seed_demo_data(db: Session) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    validate_deployment_settings()
     Base.metadata.create_all(bind=engine)
     with SessionLocal() as db:
         seed_demo_data(db)
@@ -54,7 +55,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="APAAR-Setu API", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(CORSMiddleware, allow_origins=[FRONTEND_URL], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 
 @app.get("/api/health", tags=["health"])

@@ -7,3 +7,13 @@ SIGNING_SEED = os.getenv("SIGNING_SEED", "apaar-setu-demo")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 APAAR_MODE = os.getenv("APAAR_MODE", "mock")
 DEMO_TODAY = os.getenv("DEMO_TODAY", "2027-12-31")
+APP_ENV = os.getenv("APP_ENV", "development")
+
+
+def validate_deployment_settings() -> None:
+    """Prevent public deployments from silently using known demo signing keys."""
+    if APP_ENV.lower() in {"production", "staging"}:
+        if JWT_SECRET == "dev-secret" or SIGNING_SEED == "apaar-setu-demo":
+            raise RuntimeError("Set unique JWT_SECRET and SIGNING_SEED before staging or production startup")
+        if FRONTEND_URL == "http://localhost:3000":
+            raise RuntimeError("Set FRONTEND_URL to the deployed frontend URL before staging or production startup")

@@ -6,3 +6,5 @@ export const getUpload = (id: number) => api<UploadResult>(`/api/uploads/${id}`)
 export const uploads = () => api<Record<string, unknown>[]>("/api/uploads");
 export const students = (query: string) => api<StudentList>(`/api/students?${query}`);
 export const uploadFile = (file: File, dryRun: boolean) => { const form=new FormData(); form.append("file",file); return api<UploadResult>(`/api/uploads?dry_run=${dryRun}`,{method:"POST",body:form}); };
+export const getStudent = (apaarId: string) => api<{items: Record<string, unknown>[]}>(`/api/students/${encodeURIComponent(apaarId)}`);
+export const issueRecord = (apaarId: string, academicYear?: string) => api<{token:string;verify_url:string;qr_png_base64:string;payload:Record<string, unknown>}>(`/api/records/${encodeURIComponent(apaarId)}/issue${academicYear ? `?academic_year=${encodeURIComponent(academicYear)}` : ""}`, {method:"POST"});

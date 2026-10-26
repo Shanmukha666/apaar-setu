@@ -1,7 +1,9 @@
 """Mock APAAR adapter. Owner: P3."""
+from datetime import date
 from typing import Protocol
 from app.core import config as settings
 from app.models import ApaarRegistry
+from app.services.validation.types import ApaarRecord
 
 class ApaarClient(Protocol):
     def lookup(self, apaar_id: str) -> dict | None: ...
@@ -19,3 +21,15 @@ class HttpApaarClient:
 
 def get_apaar_client(session):
     return MockApaarClient(session) if settings.APAAR_MODE == "mock" else HttpApaarClient()
+
+
+def make_validation_lookup(session):
+    """Return a function apaar_id -> ApaarRecord | None, the shape validate_batch expects."""
+    client = get_apaar_client(session)
+
+    def lookup(apaar_id: str):
+        raw = client.lookup(apaar_id)
+        if raw is None:
+            return None
+        return ApaarRecord(raw["apaar_id"], raw["name"], date.fromisoformat(raw["dob"]), raw["status"])
+    return lookup

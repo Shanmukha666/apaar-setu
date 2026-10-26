@@ -1,10 +1,15 @@
 """Database models defined by docs/CONTRACT.md."""
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
+
+
+def utc_timestamp() -> datetime:
+    """SQLite stores naive timestamps; avoid the deprecated utcnow() helper."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class User(Base):
@@ -59,8 +64,8 @@ class Student(Base):
     status: Mapped[str] = mapped_column(String, nullable=False)
     issue_codes: Mapped[str] = mapped_column(Text, default="", nullable=False)
     upload_id: Mapped[int | None] = mapped_column(ForeignKey("uploads.id"), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_timestamp, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_timestamp, onupdate=utc_timestamp, nullable=False)
 
 
 class Upload(Base):
@@ -75,7 +80,7 @@ class Upload(Base):
     accepted: Mapped[int] = mapped_column(Integer, nullable=False)
     flagged: Mapped[int] = mapped_column(Integer, nullable=False)
     rejected: Mapped[int] = mapped_column(Integer, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_timestamp, nullable=False)
 
 
 class ValidationIssue(Base):
@@ -100,14 +105,13 @@ class Alert(Base):
     message: Mapped[str] = mapped_column(String, nullable=False)
     evidence_json: Mapped[str] = mapped_column(Text, nullable=False)
     upload_id: Mapped[int | None] = mapped_column(ForeignKey("uploads.id"), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_timestamp, nullable=False)
 
 
 class AuditLog(Base):
     __tablename__ = "audit_log"
     id: Mapped[int] = mapped_column(primary_key=True)
-    # An ISO UTC string preserves the exact bytes included in the hash chain.
-    ts: Mapped[str] = mapped_column(String, nullable=False)
+    ts: Mapped[str] = mapped_column(String, nullable=False)  # UTC ISO string, hashed exactly as stored
     actor_id: Mapped[int] = mapped_column(Integer, nullable=False)
     actor_email: Mapped[str] = mapped_column(String, nullable=False)
     actor_role: Mapped[str] = mapped_column(String, nullable=False)
@@ -125,7 +129,7 @@ class Consent(Base):
     apaar_id: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     granted: Mapped[bool] = mapped_column(Boolean, nullable=False)
     purpose: Mapped[str] = mapped_column(String, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_timestamp, nullable=False)
 
 
 class ApaarRegistry(Base):

@@ -1,0 +1,4 @@
+apaar_id,student_ref,name,dob,gender,category,programme_code,academic_year,admission_date,admission_type,nri,oci,fn
+100000000016,SYN-UP-001,Diya Demo,2003-02-02,F,GEN,DIT001-CSE,2027-28,2027-07-01,REGULAR,N,N,N
+100000000024,SYN-UP-002,Kabir Demo,2004-03-03,M,GEN,DIT001-CSE,2027-28,2027-07-01,REGULAR,N,N,N
+100000000032,SYN-UP-003,Meera Demo,2005-04-04,F,GEN,DIT001-CSE,2027-28,2027-07-01,REGULAR,N,N,N

@@ -4,5 +4,8 @@ __pycache__
 *.db
 .next
 .env*
+!.env.example
+!frontend/.env.local.example
 .vscode/
 .pytest_cache/
+.npm-cache/

@@ -8,7 +8,9 @@ export interface StudentRow { apaar_id: string; student_ref: string; name: strin
 export interface StudentList { items: Record<string, unknown>[]; total: number; page: number; page_size: number }
 export interface Institution { id: number; code: string; name: string; state: string; type: string }
 export interface InstitutionSummary { institution: Institution; quality_score: number; risk_score: number; programmes: Record<string, unknown>[]; category_mix: Record<string, number>; recent_uploads: Record<string, unknown>[]; open_alerts: Record<string, unknown>[] }
-export interface NationalDashboard { cards: Record<string, number>; by_state: { state: string; intake: number; enrolled: number }[]; risk_ranking: Record<string, unknown>[]; intake_vs_enrolment: Record<string, unknown>[] }
+export interface NationalRiskRow { institution_id: number; name: string; risk_score: number; quality_score: number; alerts: number }
+export interface NationalIntakeRow { institution: string; intake: number; enrolled: number }
+export interface NationalDashboard { cards: Record<string, number>; by_state: { state: string; intake: number; enrolled: number }[]; risk_ranking: NationalRiskRow[]; intake_vs_enrolment: NationalIntakeRow[] }
 export interface Alert { id: number; institution_id: number; rule_code: string; severity: string; message: string; evidence_json: string }
 export interface Duplicate { apaar_id: string; academic_year: string; institutions: { id: number; name: string }[] }
 export interface AuditList { items: Record<string, unknown>[]; total: number; page: number; page_size: number }

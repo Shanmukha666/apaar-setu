@@ -24,3 +24,7 @@ npm run dev
 ```
 
 The frontend runs on port 3000 and expects the backend at `http://localhost:8000`.
+
+## Staging deployment
+
+Use Vercel for `frontend/` and a persistent FastAPI host for `backend/`. The exact environment variables, secret-generation command, and verification checklist are in [docs/STAGING_DEPLOYMENT.md](docs/STAGING_DEPLOYMENT.md).
