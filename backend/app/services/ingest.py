@@ -13,7 +13,8 @@ from app.services.validation.engine import validate_batch
 from app.services.validation.types import ProgrammeInfo, ValidationContext
 
 
-def process_rows(db, institution_id, actor, rows, filename, source, dry_run, today: date) -> UploadResult:
+def process_rows(db, institution_id, actor, rows, filename, source, dry_run, today: date,
+                 refresh_insights: bool = True) -> UploadResult:
     programmes = db.query(Programme).filter_by(institution_id=institution_id).all()
     programme_map = {p.code: ProgrammeInfo(p.id, p.code, p.approved_intake, p.supernumerary_limit) for p in programmes}
     existing_counts = {(pid, year, kind): count for pid, year, kind, count in db.query(Student.programme_id, Student.academic_year, Student.admission_type, func.count(Student.id)).group_by(Student.programme_id, Student.academic_year, Student.admission_type)}
@@ -61,7 +62,7 @@ def process_rows(db, institution_id, actor, rows, filename, source, dry_run, tod
     else:
         log_action(db, actor, "UPLOAD_DRY_RUN", "upload", upload.id, {"filename": filename})
     db.commit()
-    if not dry_run:
+    if not dry_run and refresh_insights:
         # Refresh derived anomaly alerts after student records are durable. Cross
         # duplicate warnings can affect the uploading institution and its peers.
         from app.services.insights import list_duplicates, refresh_institution_alerts

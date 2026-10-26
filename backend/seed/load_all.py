@@ -12,7 +12,7 @@ from pathlib import Path
 from app.core.config import DEMO_TODAY
 from app.core.security import hash_password
 from app.db import Base, SessionLocal, engine
-from app.models import Consent, Student, User
+from app.models import Alert, Consent, Student, User
 from app.services.bootstrap import seed_demo_data
 from app.services.ingest import process_rows
 from seed.load_registry import load_registry
@@ -53,10 +53,12 @@ def seed_all(db) -> None:
     seed_demo_data(db)
     actor = _system_actor(db)
     load_registry(db)
-    if not db.query(Student).count():
+    seeded_students = not db.query(Student).count()
+    if seeded_students:
         today = date.fromisoformat(DEMO_TODAY)
         for institution_id, rows in sorted(_read_baseline().items()):
-            process_rows(db, institution_id, actor, rows, "students_baseline.csv", "csv", False, today)
+            process_rows(db, institution_id, actor, rows, "students_baseline.csv", "csv", False, today,
+                         refresh_insights=False)
 
     # Consent state is deterministic and applies to every seeded student.
     for apaar_id, in db.query(Student.apaar_id).distinct().order_by(Student.apaar_id):
@@ -64,7 +66,11 @@ def seed_all(db) -> None:
             continue
         db.add(Consent(apaar_id=apaar_id, granted=int(apaar_id) % 5 != 0, purpose="verification"))
     db.commit()
-    refresh_all(db)
+    # Derived alerts need rebuilding after first seed only. Repeating this work
+    # on every serverless cold start would add latency and needlessly replace
+    # alert rows without changing their deterministic contents.
+    if seeded_students or not db.query(Alert).count():
+        refresh_all(db)
 
 
 def load_all() -> None:
