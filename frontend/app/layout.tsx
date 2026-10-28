@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: "Synthetic APAAR student verification prototype",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"
