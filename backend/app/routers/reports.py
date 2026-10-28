@@ -10,6 +10,7 @@ from app.core.security import require_roles
 from app.db import get_db
 from app.models import Institution, Programme, Student
 from app.routers.uploads import _safe
+from app.services.audit import log_action
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
@@ -19,6 +20,9 @@ def enrolment(institution_id: int, academic_year: str, user=Depends(require_role
     institution = db.get(Institution, institution_id)
     if not institution:
         raise HTTPException(status_code=404, detail="Institution not found")
+    
+    log_action(db, user, "REPORT_EXPORTED", "report", institution_id, {"institution_id": institution_id, "academic_year": academic_year, "format": "csv"})
+    db.commit()
     
     out = StringIO()
     writer = csv.writer(out, lineterminator="\n")

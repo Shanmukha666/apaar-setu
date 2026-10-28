@@ -10,9 +10,9 @@ import { useAsync } from "@/lib/useAsync";
 import type { VerifyResponse } from "@/lib/types";
 
 const BAD_REASONS: Record<string, string> = {
-  BAD_SIGNATURE: "The cryptographic signature does not match. This record was altered, forged, or was not issued by an authorized AICTE institution.",
+  BAD_SIGNATURE: "The cryptographic signature does not match. This record was altered, forged, or was not issued by an authorized institution.",
   MALFORMED: "This token payload format is invalid or corrupted.",
-  RECORD_NOT_FOUND: "The digital signature is authentic, but the corresponding student registration record is no longer active in the statutory registry.",
+  RECORD_NOT_FOUND: "The digital signature is authentic, but the corresponding student registration record is no longer active in the registry.",
 };
 
 function ResultCard({ result }: { result: VerifyResponse }) {
@@ -23,8 +23,8 @@ function ResultCard({ result }: { result: VerifyResponse }) {
           <div className="flex items-center gap-2">
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-white font-black text-sm">✓</span>
             <div>
-              <h2 className="text-xl font-black text-emerald-950">Statutory Credential Authenticated</h2>
-              <p className="text-xs text-emerald-800">Valid Ed25519 digital signature verified against AICTE National Root Key</p>
+              <h2 className="text-xl font-black text-emerald-950">Academic Credential Authenticated</h2>
+              <p className="text-xs text-emerald-800">Valid Ed25519 digital signature verified against APAAR-Setu Root Key</p>
             </div>
           </div>
           <span className="rounded-full bg-emerald-200 px-3 py-1 font-mono text-[11px] font-bold text-emerald-900 border border-emerald-300">
@@ -50,7 +50,7 @@ function ResultCard({ result }: { result: VerifyResponse }) {
           <div>
             <h2 className="text-lg font-black text-amber-950">Authentic Signature · Student Consent Required</h2>
             <p className="text-xs text-amber-900 mt-0.5">
-              Under India's Digital Personal Data Protection (DPDP) Act, personal details are withheld until the learner grants verification authorization.
+              Under India&apos;s Digital Personal Data Protection (DPDP) Act, personal details are withheld until the learner grants verification authorization.
             </p>
           </div>
         </div>
@@ -104,10 +104,26 @@ function VerifyPanel() {
     setOfflineDecoded(null);
   }
 
-  // Camera QR scanner integration (BarCodeDetector API or canvas stream)
+  useEffect(() => {
+    return () => {
+      if (videoRef.current && videoRef.current.srcObject) {
+        (videoRef.current.srcObject as MediaStream).getTracks().forEach((t) => t.stop());
+        videoRef.current.srcObject = null;
+      }
+    };
+  }, []);
+
+  function stopCamera() {
+    if (videoRef.current && videoRef.current.srcObject) {
+      (videoRef.current.srcObject as MediaStream).getTracks().forEach((t) => t.stop());
+      videoRef.current.srcObject = null;
+    }
+    setCameraActive(false);
+  }
+
   async function toggleCamera() {
     if (cameraActive) {
-      setCameraActive(false);
+      stopCamera();
       return;
     }
     setCameraError("");
@@ -118,19 +134,11 @@ function VerifyPanel() {
         videoRef.current.srcObject = stream;
         videoRef.current.play();
       }
-    } catch (err) {
+    } catch {
       setCameraError("Camera access denied or unavailable. You can paste the certificate token directly.");
       setCameraActive(false);
     }
   }
-
-  useEffect(() => {
-    return () => {
-      if (videoRef.current && videoRef.current.srcObject) {
-        (videoRef.current.srcObject as MediaStream).getTracks().forEach((t) => t.stop());
-      }
-    };
-  }, [cameraActive]);
 
   async function showKey() {
     try { setPem((await getPublicKey()).public_key_pem); } catch (e) { setKeyError(e instanceof Error ? e.message : "Could not load key"); }
@@ -156,7 +164,7 @@ function VerifyPanel() {
         <div className="mb-6 rounded-2xl border border-slate-300 bg-slate-900 p-4 text-white animate-in fade-in">
           <div className="flex justify-between items-center mb-3">
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">Live Camera Optical Scanner</span>
-            <button onClick={() => setCameraActive(false)} className="text-xs text-slate-400 hover:text-white">✕ Close</button>
+            <button onClick={stopCamera} className="text-xs text-slate-400 hover:text-white">✕ Close</button>
           </div>
           <div className="relative mx-auto aspect-video max-w-md overflow-hidden rounded-xl border-2 border-dashed border-emerald-500/50 bg-black flex items-center justify-center">
             <video ref={videoRef} className="h-full w-full object-cover" />
@@ -190,15 +198,15 @@ function VerifyPanel() {
         {check.error && <ErrorBox message={check.error} />}
         {check.data && <ResultCard result={check.data} />}
 
-        {offlineDecoded && (
+        {offlineDecoded && check.data && check.data.valid && check.data.consent_granted && (
           <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-5 text-xs animate-in fade-in">
             <div className="flex items-center justify-between border-b border-blue-200/80 pb-2.5">
               <span className="font-bold text-blue-950 flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-blue-600"></span>
-                Client-Side Authenticated Token Payload (Offline Readable)
+                Cryptographically Verified Token Payload
               </span>
               <span className="rounded-md bg-blue-200 px-2 py-0.5 font-mono text-[10px] font-black text-blue-900">
-                ZERO-CONNECTIVITY MODE
+                ED25519 VERIFIED
               </span>
             </div>
             <pre className="mt-3 overflow-x-auto rounded-xl bg-slate-900 p-3 text-blue-200 font-mono text-[11px] leading-relaxed">

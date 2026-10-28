@@ -43,7 +43,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <div className="bg-[#0f172a] text-slate-300 px-6 py-1 text-[11px] font-medium tracking-wide flex justify-between items-center border-b border-slate-800">
         <div className="flex items-center gap-3">
           <span className="inline-block w-2 h-2 rounded-full bg-emerald-400"></span>
-          <span>Ministry of Education · Government of India · AICTE APAAR System Integration</span>
+          <span>APAAR-Setu Academic Registry · Prototype (Not an official Government of India system)</span>
         </div>
         <div className="flex items-center gap-4 text-slate-400">
           <span>Smart India Hackathon 2026</span>

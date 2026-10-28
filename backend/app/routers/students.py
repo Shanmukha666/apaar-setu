@@ -40,6 +40,8 @@ def list_students(institution_id: int | None = None, programme_id: int | None = 
     query = db.query(Student, Programme.code, Institution.name).join(Programme, Programme.id == Student.programme_id) \
         .join(Institution, Institution.id == Student.institution_id)
     if user.role == "institution_admin":
+        if institution_id is not None and institution_id != user.institution_id:
+            raise HTTPException(status_code=403, detail="Not permitted")
         institution_id = user.institution_id          # always restricted to own institution
     if institution_id:
         query = query.filter(Student.institution_id == institution_id)

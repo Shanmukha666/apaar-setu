@@ -1,6 +1,9 @@
 """PBKDF2 password hashing and Bearer JWT dependencies."""
 import hashlib
 import hmac
+import os
+import secrets
+from datetime import datetime, timezone, timedelta
 
 import jwt
 from fastapi import Depends, HTTPException, status
@@ -13,20 +16,41 @@ from app.models import User
 
 # Derive a consistently sized HS256 key from the documented environment value.
 JWT_SIGNING_KEY = hashlib.sha256(JWT_SECRET.encode("utf-8")).hexdigest()
+LEGACY_SALT = b"apaar-setu-demo-salt"
 
 bearer = HTTPBearer(auto_error=False)
 
 
-def hash_password(password: str, salt: bytes = b"apaar-setu-demo-salt") -> str:
+def hash_password(password: str, salt: bytes | None = None) -> str:
+    """Store passwords as '$pbkdf2$<hex_salt>$<hex_hash>'. Legacy hashes remain verifiable."""
+    if salt is None:
+        raw_salt = secrets.token_bytes(16)
+        digest = hashlib.pbkdf2_hmac("sha256", password.encode(), raw_salt, 120_000).hex()
+        return f"$pbkdf2${raw_salt.hex()}${digest}"
     return hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 120_000).hex()
 
 
-def verify_password(password: str, password_hash: str) -> bool:
-    return hmac.compare_digest(hash_password(password), password_hash)
+def verify_password(password: str, stored_hash: str) -> bool:
+    if stored_hash.startswith("$pbkdf2$"):
+        parts = stored_hash.split("$")
+        if len(parts) == 4:
+            salt_hex, expected_digest = parts[2], parts[3]
+            computed = hashlib.pbkdf2_hmac("sha256", password.encode(), bytes.fromhex(salt_hex), 120_000).hex()
+            return hmac.compare_digest(computed, expected_digest)
+    # Legacy fixed-salt verification compatibility
+    legacy_computed = hash_password(password, LEGACY_SALT)
+    return hmac.compare_digest(legacy_computed, stored_hash)
 
 
-def create_access_token(user: User) -> str:
-    return jwt.encode({"sub": str(user.id), "role": user.role}, JWT_SIGNING_KEY, algorithm="HS256")
+def create_access_token(user: User, expires_delta: timedelta = timedelta(hours=12)) -> str:
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": str(user.id),
+        "role": user.role,
+        "iat": int(now.timestamp()),
+        "exp": int((now + expires_delta).timestamp()),
+    }
+    return jwt.encode(payload, JWT_SIGNING_KEY, algorithm="HS256")
 
 
 def get_current_user(credentials: HTTPAuthorizationCredentials | None = Depends(bearer), db: Session = Depends(get_db)) -> User:
