@@ -4,5 +4,6 @@ cd /d "%~dp0frontend"
 echo ========================================================
 echo   Starting APAAR-Setu Frontend Dev Server on Port 3000
 echo ========================================================
+if exist ".next" rmdir /s /q .next
 npm run dev
 pause
