@@ -5,3 +5,6 @@ requires-python = ">=3.12,<3.14"
 
 [tool.vercel]
 entrypoint = "app.main:app"
+
+[tool.pytest.ini_options]
+addopts = "-p no:cacheprovider"

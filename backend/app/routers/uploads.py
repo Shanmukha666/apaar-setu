@@ -56,11 +56,23 @@ def get_upload(upload_id: int, user=Depends(ADMIN_OR_AICTE), db: Session = Depen
     return _result(db,upload)
 
 
+def _safe(value) -> str:
+    """Stop spreadsheet formula injection: cells starting with = + - @ get a leading apostrophe."""
+    text = "" if value is None else str(value)
+    return "'" + text if text[:1] in ("=", "+", "-", "@") else text
+
+
 @router.get("/{upload_id}/issues.csv", response_class=PlainTextResponse)
 def issues_csv(upload_id: int, user=Depends(ADMIN_OR_AICTE), db: Session = Depends(get_db)):
-    upload=db.get(Upload,upload_id)
-    if not upload: raise HTTPException(404,"Upload not found")
-    if user.role=="institution_admin" and upload.institution_id!=user.institution_id: raise HTTPException(403,"Not permitted")
-    lines=["row_number,apaar_id,status,code,severity,field,message"]
-    for x in db.query(ValidationIssue).filter_by(upload_id=upload_id).order_by(ValidationIssue.row_number): lines.append(f'{x.row_number},{x.apaar_id},,{x.code},{x.severity},{x.field},"{x.message}"')
-    return "\n".join(lines)+"\n"
+    upload = db.get(Upload, upload_id)
+    if not upload:
+        raise HTTPException(404, "Upload not found")
+    if user.role == "institution_admin" and upload.institution_id != user.institution_id:
+        raise HTTPException(403, "Not permitted")
+    out = StringIO()
+    writer = csv.writer(out, lineterminator="\n")   # csv.writer quotes commas, quotes and newlines correctly
+    writer.writerow(["row_number", "apaar_id", "status", "code", "severity", "field", "message"])
+    for x in db.query(ValidationIssue).filter_by(upload_id=upload_id).order_by(ValidationIssue.row_number, ValidationIssue.id):
+        status = "REJECTED" if x.severity == "ERROR" else "FLAGGED"
+        writer.writerow([x.row_number, _safe(x.apaar_id), status, x.code, x.severity, x.field, _safe(x.message)])
+    return out.getvalue()

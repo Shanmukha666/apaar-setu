@@ -1,8 +1,20 @@
 import { api } from "./client";
-import type { Alert, AuditList, Institution, NationalDashboard } from "@/lib/types";
+import type { Alert, AuditList, AuditVerification, Duplicate, Institution, NationalDashboard } from "@/lib/types";
+
 export const nationalDashboard = () => api<NationalDashboard>("/api/dashboard/national");
-export const institutions = () => api<Institution[]>("/api/institutions");
-export const alerts = () => api<Alert[]>("/api/alerts");
-export const audit = () => api<AuditList>("/api/audit");
-export const duplicates = () => api<{apaar_id:string;academic_year:string;institutions:{id:number;name:string}[]}[]>("/api/duplicates");
-export const verifyAuditChain = () => api<{valid:boolean;checked:number;broken_at:number|null}>("/api/audit/verify-chain");
+export const getInstitutions = () => api<Institution[]>("/api/institutions");
+export const getAlerts = (institutionId?: string, severity?: string) => {
+  const query = new URLSearchParams();
+  if (institutionId) query.set("institution_id", institutionId);
+  if (severity) query.set("severity", severity);
+  return api<Alert[]>(`/api/alerts?${query}`);
+};
+export const getDuplicates = () => api<Duplicate[]>("/api/duplicates");
+export const getAudit = (action: string, page: number, pageSize = 15) => {
+  const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
+  if (action) query.set("action", action);
+  return api<AuditList>(`/api/audit?${query}`);
+};
+export const verifyAuditChain = () => api<AuditVerification>("/api/audit/verify-chain");
+export const simulateTamper = () => api<{ ok: boolean; tampered_id?: number; message: string }>("/api/audit/tamper-simulate", { method: "POST" });
+export const restoreTamper = () => api<{ ok: boolean; restored_count: number; status: string }>("/api/audit/tamper-restore", { method: "POST" });

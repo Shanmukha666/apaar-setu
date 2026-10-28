@@ -40,24 +40,8 @@ def process_rows(db, institution_id, actor, rows, filename, source, dry_run, tod
                 for key, value in values.items(): setattr(student, key, value)
             else:
                 db.add(Student(apaar_id=row.apaar_id, institution_id=institution_id, academic_year=clean["academic_year"], **values))
-        # One critical alert is retained for every programme/year whose rows crossed
-        # regular capacity in this upload.  The validation warning remains on each
-        # student row as the detailed evidence.
-        alerted_programmes = set()
-        for row in result.rows:
-            if "INTAKE_EXCEEDED" not in {issue.code for issue in row.issues}:
-                continue
-            clean = row.normalized
-            programme = programme_map[clean["programme_code"]]
-            if programme.id not in alerted_programmes:
-                alerted_programmes.add(programme.id)
-                db.add(Alert(institution_id=institution_id, programme_id=programme.id,
-                             rule_code="INTAKE_EXCEEDED", severity="CRITICAL",
-                             message=f"Regular enrolment exceeds approved intake for {programme.code} in {clean['academic_year']}.",
-                             evidence_json=json.dumps({"programme_code": programme.code,
-                                                       "academic_year": clean["academic_year"],
-                                                       "approved_intake": programme.approved_intake}, sort_keys=True),
-                             upload_id=upload.id))
+        db.flush()  # make this upload's students visible to the capacity count below
+        _raise_intake_alerts(db, institution_id, upload, result)
         log_action(db, actor, "UPLOAD", "upload", upload.id, {"filename": filename})
     else:
         log_action(db, actor, "UPLOAD_DRY_RUN", "upload", upload.id, {"filename": filename})
@@ -74,3 +58,23 @@ def process_rows(db, institution_id, actor, rows, filename, source, dry_run, tod
         for affected_id in sorted(affected):
             refresh_institution_alerts(db, affected_id)
     return UploadResult(upload_id=upload.id, dry_run=dry_run, total_rows=result.accepted + result.flagged + result.rejected, accepted=result.accepted, flagged=result.flagged, rejected=result.rejected, rows=[{"row_number":r.row_number,"apaar_id":r.apaar_id,"status":r.status,"issues":[{"code":i.code,"severity":i.severity,"field":i.field,"message":i.message} for i in r.issues]} for r in result.rows])
+
+
+def _raise_intake_alerts(db, institution_id, upload, result) -> None:
+    """One CRITICAL alert per programme+year that went over approved intake. A re-upload replaces the old alert."""
+    programmes = {p.code: p for p in db.query(Programme).filter_by(institution_id=institution_id)}
+    pairs = sorted({(r.normalized["programme_code"], r.normalized["academic_year"]) for r in result.rows
+                    if any(i.code == "INTAKE_EXCEEDED" for i in r.issues)})
+    for code, year in pairs:
+        programme = programmes[code]
+        regular = db.query(Student).filter_by(institution_id=institution_id, programme_id=programme.id,
+                                              academic_year=year, admission_type="REGULAR").count()
+        excess = regular - programme.approved_intake
+        for old in db.query(Alert).filter_by(institution_id=institution_id, programme_id=programme.id, rule_code="INTAKE_EXCEEDED"):
+            if json.loads(old.evidence_json).get("academic_year") == year:
+                db.delete(old)
+        db.add(Alert(institution_id=institution_id, programme_id=programme.id, rule_code="INTAKE_EXCEEDED", severity="CRITICAL",
+                     upload_id=upload.id,
+                     message=f"{code} ({year}) has {regular} regular admissions against an approved intake of {programme.approved_intake}: {excess} over.",
+                     evidence_json=json.dumps({"programme_code": code, "academic_year": year, "approved_intake": programme.approved_intake,
+                                               "enrolled_regular": regular, "excess": excess}, sort_keys=True)))

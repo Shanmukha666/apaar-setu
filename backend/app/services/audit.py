@@ -3,9 +3,12 @@ import hashlib
 import json
 from datetime import datetime, timezone
 
+from sqlalchemy import text
+
 from app.models import AuditLog
 
 GENESIS = "0" * 64
+AUDIT_LOCK_KEY = 727301
 
 
 def _canonical(entry: dict) -> str:
@@ -25,6 +28,10 @@ def _entry_of(row) -> dict:
 def log_action(db, actor, action, entity_type, entity_id, details: dict, ts: datetime | None = None):
     """Append one entry. The caller commits. ts is stored as a UTC ISO string so hashing is exact."""
     timestamp = (ts or datetime.now(timezone.utc)).astimezone(timezone.utc).isoformat()
+    if db.get_bind().dialect.name == "postgresql":
+        # Two requests reading the same "last hash" would fork the chain. A transaction-scoped advisory lock makes
+        # writers take turns; it is released automatically at commit/rollback. SQLite already has a single writer.
+        db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": AUDIT_LOCK_KEY})
     previous = db.query(AuditLog).order_by(AuditLog.id.desc()).first()
     prev_hash = previous.hash if previous else GENESIS
     record = {"ts": timestamp, "actor_id": getattr(actor, "id", 0), "actor_email": getattr(actor, "email", "system@demo.in"),

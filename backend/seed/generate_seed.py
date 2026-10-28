@@ -36,7 +36,12 @@ FIRST = ["Aarav", "Diya", "Kabir", "Meera", "Nivaan", "Riya", "Vihaan", "Zoya"]
 LAST = ["Demo", "Sample", "Synthetic", "Example", "Prototype", "Mock"]
 # Baseline enrolment per programme (same order as PROGRAMMES).
 # Inst 1 ~80-90% full; inst 2 CSE is +8 over intake; inst 3 sits just under intake.
-COUNTS = [50, 72, 96, 68, 55, 55, 58, 70, 63, 22, 22, 21, 20, 20, 20]
+COUNTS = [50, 72, 96, 68, 55, 55, 58, 70, 63, 22, 22, 21, 16, 16, 16]
+
+
+def spread_date(start: str, i: int, days: int) -> str:
+    """Deterministic admission date: start + (i mod days) days, so admissions are spread out."""
+    return date.fromordinal(date.fromisoformat(start).toordinal() + i % days).isoformat()
 
 
 def write_csv(path, rows, with_institution=False):
@@ -74,22 +79,17 @@ def generate():
     (ROOT / "programmes.json").write_text(json.dumps(PROGRAMMES, indent=2) + "\n", encoding="utf-8")
 
     # ---- baseline (2026-27) ----
+    active = [p for p in persons if p["status"] == "ACTIVE"]   # baseline uses only ACTIVE people
     rows, cursor, per_inst = [], 0, {}
-    # Baseline records must be valid stored records.  Inactive identities remain
-    # in the registry so validation demos can exercise APAAR_INACTIVE, but are
-    # deliberately excluded from the official baseline.
-    active_people = [person for person in persons if person["status"] == "ACTIVE"]
     for programme, count in zip(PROGRAMMES, COUNTS):
         inst = programme["institution_id"]
         for j in range(count):
-            person = active_people[cursor + j]
+            person = active[cursor + j]
             per_inst[inst] = per_inst.get(inst, 0) + 1
-            # Vary dates for normal data.  Institution 5 is the intentional
-            # exception: exactly 18 of its 36 admissions share one date.
-            extra = {"admission_date": f"2026-06-{2 + (per_inst[inst] % 20):02d}"}
-            if inst == 4 and per_inst[inst] <= 23:
-                extra["nri"] = "Y"                                      # 23/65 = 35%, valid flags
-            if inst == 5 and per_inst[inst] <= 30:
+            extra = {"admission_date": spread_date("2026-06-01", per_inst[inst], 30)}
+            if inst == 4 and j < 8:   # ~37% foreign-category share; exactly ONE of NRI/OCI/FN per student (OCI+FN together is invalid)
+                extra[("nri", "oci", "fn")[j % 3]] = "Y"
+            if inst == 5 and j < 10:  # most admissions on one date -> ANOM_DATE_BURST
                 extra["admission_date"] = "2026-06-01"
             row = make_row(person, programme["code"], f"SYN-{inst}-{per_inst[inst]:03d}", "2026-27", **extra)
             row["institution_id"] = str(inst)
@@ -104,7 +104,7 @@ def generate():
     write_csv(ROOT / "students_baseline.csv", rows, with_institution=True)
 
     # ---- demo uploads for institution 1, academic year 2027-28 ----
-    pool = active_people[cursor:]
+    pool = active[cursor:]
     inactive = next(p for p in persons if p["status"] == "INACTIVE")
     take = iter(pool)
     year = "2027-28"
@@ -115,12 +115,12 @@ def generate():
         return f"SYN-1-{900 + n['v']:03d}"
 
     # demo_clean: 20 valid rows, DIT001-CSE
-    clean = [make_row(next(take), "DIT001-CSE", ref(), year, "2027-07-01") for _ in range(20)]
+    clean = [make_row(next(take), "DIT001-CSE", ref(), year, spread_date("2027-07-01", i, 10)) for i in range(20)]
     write_csv(ROOT / "demo_uploads" / "demo_clean.csv", clean)
 
     # demo_messy: 30 rows = 10 clean + one row per ERROR/WARNING code + 7 supernumerary (7th exceeds limit 6).
     # INTAKE_EXCEEDED lives in demo_overflow.csv because it needs a full programme.
-    m = lambda person, **kw: make_row(person, kw.pop("prog", "DIT001-CSE"), ref(), kw.pop("year", year), kw.pop("date", "2027-07-02"), **kw)
+    m = lambda person, **kw: make_row(person, kw.pop("prog", "DIT001-CSE"), ref(), kw.pop("year", year), kw.pop("date", spread_date("2027-07-02", n["v"], 10)), **kw)
     messy = [m(next(take)) for _ in range(10)]
     first = messy[0]
     messy.append(m(next(take), apaar_id=""))                                                  # APAAR_MISSING
@@ -146,7 +146,7 @@ def generate():
     write_csv(ROOT / "demo_uploads" / "demo_messy.csv", messy)
 
     # demo_overflow: 95 rows into DIT001-ECE (intake 90) -> exactly 5 INTAKE_EXCEEDED.
-    overflow = [make_row(next(take), "DIT001-ECE", ref(), year, "2027-07-03") for _ in range(95)]
+    overflow = [make_row(next(take), "DIT001-ECE", ref(), year, spread_date("2027-07-01", i, 14)) for i in range(95)]
     write_csv(ROOT / "demo_uploads" / "demo_overflow.csv", overflow)
 
     write_expected(persons, rows)

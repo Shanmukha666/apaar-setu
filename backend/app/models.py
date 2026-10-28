@@ -1,15 +1,10 @@
 """Database models defined by docs/CONTRACT.md."""
-from datetime import datetime, timezone
+from datetime import datetime
 
 from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
-
-
-def utc_timestamp() -> datetime:
-    """SQLite stores naive timestamps; avoid the deprecated utcnow() helper."""
-    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class User(Base):
@@ -64,8 +59,8 @@ class Student(Base):
     status: Mapped[str] = mapped_column(String, nullable=False)
     issue_codes: Mapped[str] = mapped_column(Text, default="", nullable=False)
     upload_id: Mapped[int | None] = mapped_column(ForeignKey("uploads.id"), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_timestamp, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_timestamp, onupdate=utc_timestamp, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
 
 class Upload(Base):
@@ -80,7 +75,7 @@ class Upload(Base):
     accepted: Mapped[int] = mapped_column(Integer, nullable=False)
     flagged: Mapped[int] = mapped_column(Integer, nullable=False)
     rejected: Mapped[int] = mapped_column(Integer, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_timestamp, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
 
 class ValidationIssue(Base):
@@ -105,7 +100,7 @@ class Alert(Base):
     message: Mapped[str] = mapped_column(String, nullable=False)
     evidence_json: Mapped[str] = mapped_column(Text, nullable=False)
     upload_id: Mapped[int | None] = mapped_column(ForeignKey("uploads.id"), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_timestamp, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
 
 class AuditLog(Base):
@@ -129,7 +124,7 @@ class Consent(Base):
     apaar_id: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     granted: Mapped[bool] = mapped_column(Boolean, nullable=False)
     purpose: Mapped[str] = mapped_column(String, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_timestamp, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
 
 class ApaarRegistry(Base):

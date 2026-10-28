@@ -1,11 +1,52 @@
-import { getToken } from "@/lib/auth";
+import { getToken, logout } from "@/lib/auth";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) { super(message); this.status = status; }
+}
+
+async function errorMessage(response: Response): Promise<string> {
+  try {
+    const body = await response.json();
+    if (typeof body.detail === "string") return body.detail;
+    if (Array.isArray(body.detail)) return body.detail.map((d: { msg?: string }) => d.msg ?? "Invalid input").join("; ");
+  } catch { /* not JSON */ }
+  return response.statusText || `Request failed (${response.status})`;
+}
+
+async function request(path: string, init: RequestInit = {}): Promise<Response> {
   const token = getToken();
   const headers = new Headers(init.headers);
   if (token) headers.set("Authorization", `Bearer ${token}`);
-  if (init.body && !headers.has("Content-Type") && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
-  const response = await fetch(`${API_URL}${path}`, { ...init, headers });
-  if (!response.ok) throw new Error((await response.json().catch(() => ({ detail: response.statusText }))).detail);
-  return response.json() as Promise<T>;
+  if (init.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, { ...init, headers });
+  } catch {
+    throw new ApiError(`Cannot reach the API at ${API_URL}. Is the backend running?`, 0);
+  }
+  if (response.status === 401 && token && !path.startsWith("/api/auth/login")) {
+    logout(); // expired or invalid session: the RoleGuard sends the user to /login
+  }
+  if (!response.ok) throw new ApiError(await errorMessage(response), response.status);
+  return response;
+}
+
+export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+  return (await request(path, init)).json() as Promise<T>;
+}
+
+export async function apiBlob(path: string): Promise<Blob> {
+  return (await request(path)).blob();
+}
+
+export function saveBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }

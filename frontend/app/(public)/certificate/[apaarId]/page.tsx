@@ -1,21 +1,61 @@
 "use client";
-
-import { useEffect, useState } from "react";
-import Image from "next/image";
-import { useParams } from "next/navigation";
+import { Suspense } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import { RoleGuard } from "@/components/RoleGuard";
-import { getStudent, issueRecord } from "@/lib/api/institution";
+import { Btn, ErrorBox, Loading } from "@/components/common";
+import { getStudentRecords } from "@/lib/api/institution";
+import { issueRecord } from "@/lib/api/verify";
+import { useAsync } from "@/lib/useAsync";
+import type { IssuedRecord, StudentItem } from "@/lib/types";
 
-type Student = { apaar_id: string; student_ref: string; name: string; programme_name: string; academic_year: string; status: string };
-type RecordData = { verify_url: string; qr_png_base64: string; payload: Record<string, unknown> };
-
-function CertificateContent() {
-  const params = useParams<{apaarId: string}>(); const apaarId = params.apaarId;
-  const [student, setStudent] = useState<Student>(); const [record, setRecord] = useState<RecordData>(); const [error, setError] = useState("");
-  useEffect(() => { getStudent(apaarId).then((response) => { const latest = response.items[0] as unknown as Student | undefined; if (!latest) throw new Error("Student not found"); setStudent(latest); return issueRecord(apaarId, latest.academic_year); }).then((response) => setRecord(response)).catch((caught: Error) => setError(caught.message)); }, [apaarId]);
-  if (error) return <p className="rounded border border-red-200 bg-red-50 p-4 text-red-800">{error}</p>;
-  if (!student || !record) return <p>Preparing certificate...</p>;
-  return <article className="certificate mx-auto max-w-3xl rounded-xl border-2 border-[#1e3a8a] bg-white p-8 shadow-sm"><p className="mb-6 text-center font-semibold tracking-wide text-amber-700">SYNTHETIC DATA — DEMO ONLY</p><h1 className="text-center text-3xl font-bold text-[#1e3a8a]">Provisional Enrolment Certificate</h1><p className="mt-1 text-center text-slate-600">APAAR-Setu Prototype</p><div className="mt-8 grid gap-5 sm:grid-cols-[1fr_auto]"><div className="space-y-3"><p>This certifies the provisional enrolment of <strong>{student.name}</strong>.</p><dl className="grid grid-cols-2 gap-3"><dt className="text-slate-500">Programme</dt><dd>{student.programme_name}</dd><dt className="text-slate-500">Academic year</dt><dd>{student.academic_year}</dd><dt className="text-slate-500">Student ID</dt><dd>{student.student_ref}</dd><dt className="text-slate-500">APAAR ID</dt><dd>{student.apaar_id}</dd><dt className="text-slate-500">Status</dt><dd>{student.status}</dd></dl></div><Image className="h-40 w-40" alt="Verification QR code" src={`data:image/png;base64,${record.qr_png_base64}`} width={160} height={160} unoptimized /></div><p className="mt-8 break-all text-xs text-slate-500">Verify: {record.verify_url}</p><button onClick={() => window.print()} className="mt-6 rounded bg-[#1e3a8a] px-4 py-2 text-white print:hidden">Print certificate</button></article>;
+async function load(apaarId: string, year: string | null): Promise<{ student: StudentItem; issued: IssuedRecord }> {
+  const detail = await getStudentRecords(apaarId);
+  // The API lists the newest academic year first; use the requested year when given.
+  const student = detail.records.find((r) => r.academic_year === year) ?? detail.records[0];
+  const issued = await issueRecord(apaarId, student.academic_year);
+  return { student, issued };
 }
-export default function CertificatePage() { return <RoleGuard roles={["institution_admin", "aicte_officer"]}><AppShell><CertificateContent /></AppShell></RoleGuard>; }
+
+function Certificate() {
+  const { apaarId } = useParams<{ apaarId: string }>();
+  const year = useSearchParams().get("year");
+  const { data, error, loading } = useAsync(`cert-${apaarId}-${year}`, () => load(apaarId, year));
+  if (loading) return <Loading text="Issuing signed record…" />;
+  if (error || !data) return <ErrorBox message={error ?? "No data"} />;
+  const { student, issued } = data;
+
+  return (
+    <>
+      <div className="no-print mb-4 flex justify-end"><Btn variant="accent" onClick={() => window.print()}>Print certificate</Btn></div>
+      <article className="relative mx-auto max-w-3xl rounded-lg border-4 border-double border-[#1e3a8a] bg-white p-8">
+        <p className="mb-4 rounded bg-amber-100 p-1 text-center text-xs font-semibold text-amber-900">Synthetic data · demo only</p>
+        <h1 className="text-center text-2xl font-bold text-[#1e3a8a]">Provisional Enrolment Certificate (Prototype)</h1>
+        <p className="mt-6 text-center text-lg">This is to certify that</p>
+        <p className="my-2 text-center text-3xl font-bold">{student.name}</p>
+        <p className="text-center text-lg">
+          is enrolled in <strong>{student.programme_code}</strong> at <strong>{student.institution_name}</strong>{" "}
+          for the academic year <strong>{student.academic_year}</strong>.
+        </p>
+        <div className="mt-8 grid grid-cols-2 gap-4 rounded-lg bg-slate-50 p-4 text-center">
+          <div><p className="text-xs uppercase text-slate-500">Student ID</p><p className="font-mono text-xl font-bold">{student.student_ref}</p></div>
+          <div><p className="text-xs uppercase text-slate-500">APAAR ID</p><p className="font-mono text-xl font-bold">{student.apaar_id}</p></div>
+        </div>
+        <div className="mt-8 flex flex-col items-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img alt="QR code to verify this record" className="h-44 w-44" src={`data:image/png;base64,${issued.qr_png_base64}`} />
+          <p className="mt-2 text-sm font-medium">Scan to verify</p>
+          <p className="mt-1 max-w-full break-all text-center text-[10px] text-slate-500">{issued.verify_url}</p>
+        </div>
+      </article>
+    </>
+  );
+}
+
+export default function CertificatePage() {
+  return (
+    <RoleGuard roles={["institution_admin", "aicte_officer"]}>
+      <AppShell><Suspense fallback={<Loading />}><Certificate /></Suspense></AppShell>
+    </RoleGuard>
+  );
+}

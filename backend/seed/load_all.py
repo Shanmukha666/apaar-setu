@@ -6,11 +6,13 @@ audit logging, capacity alerts, and the mock registry in one consistent flow.
 """
 import argparse
 import csv
+from contextlib import contextmanager
 from datetime import date
 from pathlib import Path
 
 from app.core.config import DEMO_TODAY
-from app.core.security import hash_password
+from sqlalchemy import text
+
 from app.db import Base, SessionLocal, engine
 from app.models import Alert, Consent, Student, User
 from app.services.bootstrap import seed_demo_data
@@ -20,6 +22,8 @@ from seed.refresh_all import refresh_all
 
 
 ROOT = Path(__file__).resolve().parent
+# Not a valid PBKDF2 hex digest, so no password can ever match: the seed actor is not a login account.
+NO_LOGIN = "!"
 BASELINE = ROOT / "data" / "students_baseline.csv"
 
 
@@ -27,14 +31,13 @@ def _system_actor(db):
     """Return the non-login actor used for deterministic seed audit entries."""
     actor = db.query(User).filter_by(email="system@demo.in").first()
     if not actor:
-        actor = User(
-            email="system@demo.in",
-            password_hash=hash_password("not-a-login-account"),
-            name="Demo Seed System",
-            role="sys_admin",
-            institution_id=None,
-        )
+        actor = User(email="system@demo.in", password_hash=NO_LOGIN, name="Demo Seed System",
+                     role="sys_admin", institution_id=None)
         db.add(actor)
+        db.commit()
+    elif actor.password_hash != NO_LOGIN:
+        # Databases seeded by older versions gave this account a guessable password. Disable it.
+        actor.password_hash = NO_LOGIN
         db.commit()
     return actor
 
@@ -48,8 +51,31 @@ def _read_baseline() -> dict[int, list[dict[str, str]]]:
     return grouped
 
 
+SEED_LOCK_KEY = 727302
+
+
+@contextmanager
+def seed_lock(db):
+    """Serialize seeding across processes on PostgreSQL (no-op on SQLite). Prevents two cold starts loading the baseline twice."""
+    if db.get_bind().dialect.name != "postgresql":
+        yield
+        return
+    db.execute(text("SELECT pg_advisory_lock(:key)"), {"key": SEED_LOCK_KEY})
+    try:
+        yield
+    finally:
+        db.commit()  # end any open transaction before releasing the session-level lock
+        db.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": SEED_LOCK_KEY})
+        db.commit()
+
+
 def seed_all(db) -> None:
-    """Populate a supplied session once; safe in Vercel function cold starts."""
+    """Populate a supplied session once; safe in Vercel function cold starts (guarded by seed_lock)."""
+    with seed_lock(db):
+        _seed_all_locked(db)
+
+
+def _seed_all_locked(db) -> None:
     seed_demo_data(db)
     actor = _system_actor(db)
     load_registry(db)
