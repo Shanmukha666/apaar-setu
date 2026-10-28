@@ -13,6 +13,7 @@ const NAV: Record<Role, [string, string][]> = {
   aicte_officer: [
     ["National Overview", "/aicte/dashboard"],
     ["Anomaly Alerts", "/aicte/alerts"],
+    ["Regulatory Reports", "/aicte/reports"],
     ["Audit Trail", "/aicte/audit"],
   ],
   verifier: [

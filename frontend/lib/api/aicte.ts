@@ -1,4 +1,4 @@
-import { api } from "./client";
+import { api, apiBlob } from "./client";
 import type { Alert, AuditList, AuditVerification, Duplicate, Institution, NationalDashboard } from "@/lib/types";
 
 export const nationalDashboard = () => api<NationalDashboard>("/api/dashboard/national");
@@ -14,6 +14,10 @@ export const getAudit = (action: string, page: number, pageSize = 15) => {
   const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
   if (action) query.set("action", action);
   return api<AuditList>(`/api/audit?${query}`);
+};
+export const downloadEnrolmentCsv = (institutionId: number, academicYear: string) => {
+  const query = new URLSearchParams({ institution_id: String(institutionId), academic_year: academicYear });
+  return apiBlob(`/api/reports/enrolment.csv?${query}`);
 };
 export const verifyAuditChain = () => api<AuditVerification>("/api/audit/verify-chain");
 export const simulateTamper = () => api<{ ok: boolean; tampered_id?: number; message: string }>("/api/audit/tamper-simulate", { method: "POST" });
