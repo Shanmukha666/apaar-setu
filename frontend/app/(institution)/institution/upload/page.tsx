@@ -40,8 +40,8 @@ function UploadPageContent() {
       const text = await selectedFile.slice(0, 4096).text();
       const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
       if (lines.length > 0) {
-        const header = lines[0].split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
-        const matches = header.length === EXPECTED_HEADER.length && header.every((h, i) => h === EXPECTED_HEADER[i]);
+        const header = lines[0].split(",").map((c) => c.trim().toLowerCase().replace(/^"|"$/g, ""));
+        const matches = EXPECTED_HEADER.every((h) => header.includes(h));
         setHeaderValid(matches);
 
         const sample = lines.slice(1, 4).map((l) => l.split(",").map((c) => c.trim().replace(/^"|"$/g, "")));

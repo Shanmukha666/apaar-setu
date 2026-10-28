@@ -130,7 +130,7 @@ def test_student_list_is_scoped_and_searchable(seeded):
     first = mine["items"][0]["apaar_id"]
     assert seeded.get(f"/api/students?q={first}", headers=ha).json()["total"] >= 1
     assert seeded.get("/api/students?status=FLAGGED", headers=ha).json()["total"] >= 16
-    assert seeded.get(f"/api/students/{first}", headers=h1).json()["items"][0]["apaar_id"] == first
+    assert seeded.get(f"/api/students/{first}", headers=h1).json()["records"][0]["apaar_id"] == first
 
 
 def test_audit_chain_valid_then_detects_tampering(seeded):

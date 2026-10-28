@@ -35,10 +35,17 @@ def _result(db, upload):
 async def upload(file: UploadFile = File(...), dry_run: bool = False, user=Depends(require_roles("institution_admin")), db: Session = Depends(get_db)):
     text = (await file.read()).decode("utf-8-sig")
     reader = csv.DictReader(StringIO(text))
-    if reader.fieldnames != HEADER: raise HTTPException(400, "CSV header must match the contract header exactly")
-    rows = list(reader)
-    if len(rows) > 5000: raise HTTPException(413, "CSV may contain at most 5000 rows")
-    return process_rows(db,user.institution_id,user,rows,file.filename or "upload.csv","csv",dry_run,date.fromisoformat(DEMO_TODAY))
+    raw_fieldnames = [str(f).strip().lower() for f in (reader.fieldnames or []) if f is not None]
+    if set(raw_fieldnames) != set(HEADER):
+        raise HTTPException(400, "CSV header must match the contract header exactly")
+    rows = []
+    for r in reader:
+        clean_row = {str(k).strip().lower(): v for k, v in r.items() if k is not None}
+        if any(v and str(v).strip() for v in clean_row.values()):
+            rows.append(clean_row)
+    if len(rows) > 5000:
+        raise HTTPException(413, "CSV may contain at most 5000 rows")
+    return process_rows(db, user.institution_id, user, rows, file.filename or "upload.csv", "csv", dry_run, date.fromisoformat(DEMO_TODAY))
 
 
 @router.get("")
