@@ -2,7 +2,7 @@
 // Token + user live in localStorage (prototype). Components must read them through useAuth(), never during render
 // via getUser(): the server has no localStorage, so reading it in render makes server and client HTML differ
 // (React hydration error #418). useAuth() reports `ready: false` until the browser has hydrated.
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { Role, User } from "@/lib/types";
 
 const TOKEN_KEY = "apaar_setu_token";
@@ -46,11 +46,14 @@ function subscribe(callback: () => void): () => void {
   };
 }
 
-const noopSubscribe = () => () => {};
-
 export function useAuth(): { user: User | null; ready: boolean } {
+  const [ready, setReady] = useState(false);
   const raw = useSyncExternalStore(subscribe, () => window.localStorage.getItem(USER_KEY), () => null);
-  const ready = useSyncExternalStore(noopSubscribe, () => true, () => false);
+
+  useEffect(() => {
+    setReady(true);
+  }, []);
+
   const user = useMemo<User | null>(() => {
     if (!raw) return null;
     try { return JSON.parse(raw) as User; } catch { return null; }

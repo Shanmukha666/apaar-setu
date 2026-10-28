@@ -1,6 +1,12 @@
 import { getToken, logout } from "@/lib/auth";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+export function getApiUrl(): string {
+  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+  if (typeof window !== "undefined" && window.location.hostname === "127.0.0.1") {
+    return "http://127.0.0.1:8000";
+  }
+  return "http://localhost:8000";
+}
 
 export class ApiError extends Error {
   status: number;
@@ -21,11 +27,12 @@ async function request(path: string, init: RequestInit = {}): Promise<Response> 
   const headers = new Headers(init.headers);
   if (token) headers.set("Authorization", `Bearer ${token}`);
   if (init.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  const baseUrl = getApiUrl();
   let response: Response;
   try {
-    response = await fetch(`${API_URL}${path}`, { ...init, headers });
+    response = await fetch(`${baseUrl}${path}`, { ...init, headers });
   } catch {
-    throw new ApiError(`Cannot reach the API at ${API_URL}. Is the backend running?`, 0);
+    throw new ApiError(`Cannot reach the API at ${baseUrl}. Is the backend running?`, 0);
   }
   if (response.status === 401 && token && !path.startsWith("/api/auth/login")) {
     logout(); // expired or invalid session: the RoleGuard sends the user to /login
