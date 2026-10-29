@@ -9,8 +9,3 @@ __pycache__
 .vscode/
 .pytest_cache/
 .npm-cache/
-apaar-setu-patch/
-apaar-setu-head-fixes/
-apaar-setu-head-fixes.patch
-demo_video/*.webm
-
